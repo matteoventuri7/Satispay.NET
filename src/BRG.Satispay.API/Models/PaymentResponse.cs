@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 
-namespace BRG.Satispay.Models
+namespace BRG.Satispay.API.Models
 {
     //https://developers.satispay.com/reference#create-a-payment
     public class PaymentResponse<T>

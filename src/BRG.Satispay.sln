@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34024.191
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BRG.Satispay", "SatispayGBusiness\BRG.Satispay.csproj", "{398CAA4D-7C19-4B9F-AFCB-81F7367B9BFF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BRG.Satispay.API", "BRG.Satispay.API\BRG.Satispay.API.csproj", "{398CAA4D-7C19-4B9F-AFCB-81F7367B9BFF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BRG.Satispay.Test", "SatispayGBusiness.Test\BRG.Satispay.Test.csproj", "{C996BFE2-61A3-4E27-A147-2D45FE7249CA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BRG.Satispay.Test", "BRG.Satispay.Test\BRG.Satispay.Test.csproj", "{C996BFE2-61A3-4E27-A147-2D45FE7249CA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

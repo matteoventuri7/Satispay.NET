@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace BRG.Satispay.Models
+namespace BRG.Satispay.API.Models
 {
     public class Receiver
     {

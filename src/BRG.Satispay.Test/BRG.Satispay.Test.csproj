@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SatispayGBusiness\BRG.Satispay.csproj" />
+    <ProjectReference Include="..\BRG.Satispay.API\BRG.Satispay.API.csproj" />
   </ItemGroup>
 
 </Project>

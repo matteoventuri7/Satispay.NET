@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BRG.Satispay
+namespace BRG.Satispay.API
 {
     public class SatispayDateTimeConverter : JsonConverter<DateTime?>
     {

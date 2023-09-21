@@ -1,4 +1,5 @@
-using BRG.Satispay.Models;
+using BRG.Satispay.API;
+using BRG.Satispay.API.Models;
 using System.Net;
 using Xunit.Abstractions;
 

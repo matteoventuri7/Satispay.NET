@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net;
 
-namespace BRG.Satispay
+namespace BRG.Satispay.API
 {
     public class SatispayException : Exception
     {

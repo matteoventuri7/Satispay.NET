@@ -12,7 +12,7 @@
     <PackageTags>satispay</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageIcon>icon.png</PackageIcon>
+    <PackageIcon></PackageIcon>
     <Description>Satispay C# API client based on https://developers.satispay.com/reference</Description>
     <RepositoryUrl>https://github.com/GioviQ/Satispay.NET</RepositoryUrl>
     <PackageProjectUrl>https://github.com/GioviQ/Satispay.NET</PackageProjectUrl>
@@ -20,14 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\icon.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
     <PackageReference Include="System.Net.Http.Json" Version="7.0.1" />
   </ItemGroup>
 
