@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 
-namespace SatispayGBusiness.Models
+namespace BRG.Satispay.Models
 {
     public class DailyClosure
     {

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace SatispayGBusiness.Models
+namespace BRG.Satispay.Models
 {
     public class Sender
     {

@@ -1,8 +1,8 @@
-﻿using Org.BouncyCastle.Crypto;
+﻿using BRG.Satispay.Models;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
-using SatispayGBusiness.Models;
 using System;
 using System.Globalization;
 using System.IO;
@@ -15,41 +15,34 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace SatispayGBusiness
+namespace BRG.Satispay
 {
-    public class Api
+    public class SatispayService
     {
         private const string baseDomain = "authservices.satispay.com";
-        public string PrivateKey { get; set; }
-        public string PublicKey { get; set; }
-        public string KeyId { get; set; }
-        public string Version { get; private set; } = "1.2.0";
-        public bool IsSandbox { get; private set; }
-
         private HttpClient httpClient;
+        private bool isSandBox;
 
-        private AsymmetricCipherKeyPair ackp;
-
-        public Api(HttpClient httpClient, bool isSandBox = false)
+        public SatispayService(HttpClient httpClient, bool isSandBox = false)
         {
-            IsSandbox = isSandBox;
+            this.isSandBox = isSandBox;
             this.httpClient = httpClient;
             httpClient.BaseAddress = isSandBox ?
             new Uri($"https://staging.{baseDomain}/g_business/v1/") :
             new Uri($"https://{baseDomain}/g_business/v1/");
         }
 
-        public string GenerateRsaKeys()
+        public async Task<SatispayConfigurationParams> GenerateConfiguration(string token)
         {
             RsaKeyPairGenerator rkpg = new RsaKeyPairGenerator();
             rkpg.Init(new KeyGenerationParameters(new SecureRandom(), 4096));
-            ackp = rkpg.GenerateKeyPair();
+            var ackp = rkpg.GenerateKeyPair();
 
-            PublicKey = GetPem(ackp.Public);
+            var publicKey = GetPem(ackp.Public);
+            var privateKey = GetPem(ackp.Private);
+            var keyId = await RequestKeyId(new(token, publicKey));
 
-            PrivateKey = GetPem(ackp.Private);
-
-            return PrivateKey;
+            return new(privateKey, publicKey, keyId);
         }
 
         private string GetPem(AsymmetricKeyParameter akp)
@@ -62,22 +55,19 @@ namespace SatispayGBusiness
             return keyPem.ToString().Replace("\r", string.Empty);
         }
 
-        public void SetAsymmetricKeyParameter(string pemPrivateKey)
+        private ICipherParameters GetPrivateKeyCipherParam(string pemPrivateKey)
         {
             var pemReader = new PemReader(new StringReader(pemPrivateKey));
-            ackp = (AsymmetricCipherKeyPair)pemReader.ReadObject();
+            var ackp = (AsymmetricCipherKeyPair)pemReader.ReadObject();
+            return ackp.Private;
         }
 
-        public async Task<string> RequestKeyId(RequestKeyIdRequest request)
+        /// <summary>
+        /// Just one time configuration.
+        /// </summary>
+        /// <returns>The KeyId</returns>
+        private async Task<string> RequestKeyId(RequestKeyIdRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.token))
-                throw new ArgumentNullException("Missing activationToken argument");
-
-            request.public_key = request.public_key ?? PublicKey;
-
-            if (string.IsNullOrWhiteSpace(request.public_key))
-                throw new ArgumentNullException("Missing PublicKey");
-
             HttpResponseMessage response = null;
 
             try
@@ -88,9 +78,7 @@ namespace SatispayGBusiness
 
                 var result = await response.Content.ReadFromJsonAsync<RequestKeyIdResponse>();
 
-                KeyId = result.key_id;
-
-                return KeyId;
+                return result.key_id;
             }
             catch (HttpRequestException ex)
             {
@@ -108,7 +96,7 @@ namespace SatispayGBusiness
             }
         }
 
-        private async Task<T> SendJsonAsync<T>(HttpMethod method, string requestUri, object content = null, string idempotencyKey = null)
+        private async Task<T> SendJsonAsync<T>(SatispayConfigurationParams config, HttpMethod method, string requestUri, object content = null, string idempotencyKey = null)
         {
             var requestJson = string.Empty;
 
@@ -141,16 +129,14 @@ namespace SatispayGBusiness
 
                 signature.Append($"digest: {digest}");
 
-                var sign = SignData(signature.ToString(), ackp.Private);
+                var sign = SignData(signature.ToString(), GetPrivateKeyCipherParam(config.PemPrivateKey));
 
                 httpRequestMessage.Headers.Add("Digest", digest);
                 httpRequestMessage.Headers.Add("Authorization",
-                    $"Signature keyId=\"{KeyId}\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date digest\", signature=\"{sign}\"");
+                    $"Signature keyId=\"{config.KeyId}\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date digest\", signature=\"{sign}\"");
 
                 if (idempotencyKey != null)
                     httpRequestMessage.Headers.Add("Idempotency-Key", idempotencyKey);
-
-                httpRequestMessage.Headers.Add("x-satispay-appn", "Satispay.NET");
 
                 HttpResponseMessage response = null;
 
@@ -177,12 +163,12 @@ namespace SatispayGBusiness
             }
         }
 
-        private string SignData(string msg, AsymmetricKeyParameter privKey)
+        private string SignData(string msg, ICipherParameters privateKey)
         {
             byte[] msgBytes = Encoding.UTF8.GetBytes(msg);
 
             ISigner signer = SignerUtilities.GetSigner("SHA256WithRSA");
-            signer.Init(true, privKey);
+            signer.Init(true, privateKey);
             signer.BlockUpdate(msgBytes, 0, msgBytes.Length);
             byte[] sigBytes = signer.GenerateSignature();
 
@@ -200,25 +186,35 @@ namespace SatispayGBusiness
             return signer.VerifySignature(sigBytes);
         }
 
-        public async Task<CreatePaymentResponse<T>> CreatePayment<T>(CreatePaymentRequest<T> request, string idempotencyKey = null)
+        public async Task<CreatePaymentResponse<T>> CreatePayment<T>(SatispayConfigurationParams config, CreatePaymentRequest<T> request, string idempotencyKey = null)
         {
             if (request.amount_unit == 0)
                 throw new SatispayException("amount_unit must be greater than 0", HttpStatusCode.BadRequest);
 
-            var response = await SendJsonAsync<CreatePaymentResponse<T>>(HttpMethod.Post, "payments", request, idempotencyKey);
+            var response = await SendJsonAsync<CreatePaymentResponse<T>>(config, HttpMethod.Post, "payments", request, idempotencyKey);
 
-            //TODO
-            response.QrCodeUrl = IsSandbox ? $"https://staging.online.satispay.com/qrcode/{response.code_identifier}" : $"https://online.satispay.com/qrcode/{response.code_identifier}";
+            response.QrCodeUrl = isSandBox ? $"https://staging.online.satispay.com/qrcode/{response.code_identifier}" : $"https://online.satispay.com/qrcode/{response.code_identifier}";
 
             return response;
         }
-        public async Task<PaymentDetailsResponse<T>> GetPaymentDetails<T>(string paymentId)
+
+        public async Task<GetCustomerResponse> GetConsumer(SatispayConfigurationParams config, string phone, string idempotencyKey = null)
         {
-            return await SendJsonAsync<PaymentDetailsResponse<T>>(HttpMethod.Get, $"payments/{paymentId}");
+            if (phone is null)
+                throw new SatispayException("phone must be not null", HttpStatusCode.BadRequest);
+
+            var response = await SendJsonAsync<GetCustomerResponse>(config, HttpMethod.Get, $"consumers/{phone}", null, idempotencyKey);
+
+            return response;
         }
-        public async Task<PaymentDetailsResponse<T>> UpdatePaymentDetails<T>(string paymentId, UpdatePaymentRequest<T> request)
+
+        public async Task<PaymentDetailsResponse<T>> GetPaymentDetails<T>(SatispayConfigurationParams config, string paymentId)
         {
-            return await SendJsonAsync<PaymentDetailsResponse<T>>(HttpMethod.Put, $"payments/{paymentId}", request);
+            return await SendJsonAsync<PaymentDetailsResponse<T>>(config, HttpMethod.Get, $"payments/{paymentId}");
+        }
+        public async Task<PaymentDetailsResponse<T>> UpdatePaymentDetails<T>(SatispayConfigurationParams config, string paymentId, UpdatePaymentRequest<T> request)
+        {
+            return await SendJsonAsync<PaymentDetailsResponse<T>>(config, HttpMethod.Put, $"payments/{paymentId}", request);
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 
-namespace SatispayGBusiness.Models
+namespace BRG.Satispay.Models
 {
     //https://developers.satispay.com/reference#create-a-payment
     public class CreatePaymentRequest<T>

@@ -1,4 +1,4 @@
-﻿namespace SatispayGBusiness.Models
+﻿namespace BRG.Satispay.Models
 {
     public class CreatePaymentResponse<T> : PaymentResponse<T>
     {
